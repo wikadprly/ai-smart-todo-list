@@ -1,0 +1,197 @@
+// AI Smart To-Do List - Prisma Schema
+//
+// Catatan:
+// - Model & enum di bawah adalah agreed scope tahap pondasi.
+// - Jika suatu anggota kelompok butuh kolom tambahan, buat migration baru
+//   (jangan edit manual tabel yang sudah ada di database).
+// - Semua tabel memakai @@map ke snake_case agar konsisten di SQL.
+
+// Generator "prisma-client-js" dipakai (bukan "prisma-client") karena project ini
+// memakai JavaScript. Hasilnya di-import sebagai `import { PrismaClient } from "@prisma/client"`.
+// Jalankan `npm run db:generate` setiap kali schema.prisma berubah.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+/// Sumber prioritas: nilai bawaan, pilihan user, atau hasil rekomendasi AI.
+enum PrioritySource {
+  DEFAULT
+  MANUAL
+  AI
+}
+
+enum ScheduleStatus {
+  PLANNED
+  DONE
+  SKIPPED
+}
+
+/// Fitur AI yang menghasilkan log. Satu nilai per-modul.
+enum AiFeature {
+  TASK_INPUT
+  CATEGORIZATION
+  PRIORITY
+  BREAKDOWN
+}
+
+enum AiRunStatus {
+  SUCCESS
+  FAILED
+}
+
+/// Pengguna aplikasi. Satu user memiliki banyak task, schedule, dan ai log.
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions  Session[]
+  tasks     Task[]
+  schedules Schedule[]
+  aiLogs    AiLog[]
+
+  @@map("users")
+}
+
+/// Sesi pengguna aktif. Logout = hapus row ini.
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Kategori tugas. Data awal diisi lewat prisma/seed.js.
+model Category {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  description String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tasks Task[]
+
+  @@map("categories")
+}
+
+/// Tugas utama milik satu user. Subtask dan schedule menempel ke task ini.
+model Task {
+  id               String         @id @default(cuid())
+  userId           String
+  categoryId       String?
+  title            String
+  description      String?
+  status           TaskStatus     @default(TODO)
+  priority         Priority       @default(MEDIUM)
+  prioritySource   PrioritySource @default(DEFAULT)
+  dueDate          DateTime?
+  estimatedMinutes Int?
+  /// Teks bahasa natural asli dari user, disimpan bila tugas dibuat lewat AI.
+  rawInput         String?
+  completedAt      DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  subtasks  Subtask[]
+  schedules Schedule[]
+  aiLogs    AiLog[]
+
+  @@index([userId, status])
+  @@index([userId, dueDate])
+  @@index([categoryId])
+  @@map("tasks")
+}
+
+/// Subtask hasil Task Breakdown. `order` menyimpan urutan hasil dari AI.
+model Subtask {
+  id               String    @id @default(cuid())
+  taskId           String
+  title            String
+  isDone           Boolean   @default(false)
+  order            Int       @default(0)
+  estimatedMinutes Int?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, order])
+  @@map("subtasks")
+}
+
+/// Slot waktu untuk menjalankan sebuah task (Calendar & Schedule).
+model Schedule {
+  id        String         @id @default(cuid())
+  userId    String
+  taskId    String
+  startAt   DateTime
+  endAt     DateTime
+  status    ScheduleStatus @default(PLANNED)
+  /// "manual" bila user yang memilih, "ai" bila hasil rekomendasi AI.
+  source    String         @default("manual")
+  notes     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startAt])
+  @@index([taskId])
+  @@map("schedules")
+}
+
+/// Log setiap pemanggilan AI: input, output, dan statusnya.
+/// Dipakai untuk evaluasi, debugging, dan pelaporan tugas.
+model AiLog {
+  id           String      @id @default(cuid())
+  userId       String?
+  taskId       String?
+  feature      AiFeature
+  /// "gemini" / "openai" / dll. String, bukan enum, agar bebas ganti penyedia.
+  provider     String
+  model        String
+  inputText    String?
+  output       Json?
+  status       AiRunStatus @default(SUCCESS)
+  durationMs   Int?
+  errorMessage String?
+  createdAt    DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  task Task? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  @@index([userId, feature])
+  @@index([taskId])
+  @@map("ai_logs")
+}

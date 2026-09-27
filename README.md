@@ -1,36 +1,200 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Smart To-Do List
 
-## Getting Started
+Aplikasi web untuk membantu pengguna mengelola, mengatur, dan menjadwalkan tugas
+dengan memanfaatkan teknologi Kecerdasan Buatan.
 
-First, run the development server:
+Pengguna dapat memasukkan tugas menggunakan bahasa natural. AI kemudian membantu
+mengubah input tersebut menjadi data tugas yang terstruktur, menentukan kategori
+dan prioritas, serta memecah tugas menjadi beberapa subtugas.
+
+## Tujuan
+
+Project ini dikembangkan sebagai tugas kelompok mata kuliah Rekayasa
+Kecerdasan Buatan di Program Studi D3 Teknik Informatika, Politeknik Negeri
+Semarang.
+
+## Fitur Utama
+
+1. **Authentication** — register, login, logout, session pengguna.
+2. **Task Management** — tambah, lihat, ubah, hapus, tandai selesai.
+3. **AI Task Input** — mengubah input bahasa natural menjadi data tugas terstruktur.
+4. **Task Categorization** — menentukan kategori tugas (Academic, Work, Personal,
+   Health, Learning, Finance, dan lain-lain).
+5. **Priority Recommendation** — rekomendasi prioritas High, Medium, atau Low.
+6. **Task Breakdown** — memecah tugas besar menjadi beberapa subtugas.
+7. **Calendar & Schedule** — menampilkan dan mengelola tugas berdasarkan waktu.
+8. **Dashboard & Progress** — ringkasan tugas dan progress pengguna.
+
+## Teknologi
+
+- **Next.js 16** (App Router)
+- **JavaScript** — bukan TypeScript
+- **Node.js 20.9+**
+- **PostgreSQL**
+- **Prisma ORM 7**
+- **zod** — validasi input
+- **Git & GitHub**
+
+## Menjalankan Project
 
 ```bash
+# 1. Install dependency
+npm install
+
+# 2. Siapkan environment variable
+cp .env.example .env          # Windows: copy .env.example .env
+# lalu isi DATABASE_URL sesuai PostgreSQL lokal kamu
+
+# 3. Buat tabel di database
+npm run db:migrate
+
+# 4. Isi data kategori dasar
+npm run db:seed
+
+# 5. Jalankan
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+Command lain yang berguna:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command               | Kegunaan                                  |
+| --------------------- | ----------------------------------------- |
+| `npm run db:generate` | Regenerate Prisma Client setelah ubah schema |
+| `npm run db:studio`   | Buka Prisma Studio untuk lihat data       |
+| `npm run lint`        | Jalankan ESLint                           |
+| `npm run build`       | Build production                          |
 
-## Learn More
+## Struktur Project
 
-To learn more about Next.js, take a look at the following resources:
+```
+ai-smart-todo-list/
+├── prisma/
+│   ├── schema.prisma        # definisi tabel & relasi
+│   └── seed.js              # data awal (kategori dasar)
+├── prisma.config.mjs        # konfigurasi Prisma CLI
+├── public/
+├── src/
+│   ├── app/                 # routing: halaman & API route handler
+│   │   └── api/             # endpoint backend
+│   ├── config/
+│   │   └── features.js      # registry fitur + penanggung jawab
+│   ├── lib/                 # infra bersama (tidak diubah per fitur)
+│   │   ├── prisma.js        # Prisma Client singleton
+│   │   ├── api-response.js  # format response & error handler
+│   │   ├── api-error.js     # kelas error
+│   │   └── env.js           # pembacaan environment variable
+│   └── modules/             # satu folder per fitur
+│       ├── auth/            # Wika
+│       ├── tasks/           # Fauzan
+│       ├── ai-input/        # Faqih
+│       ├── categorization/  # Atha
+│       ├── priority/        # Haikal
+│       ├── breakdown/       # Amel
+│       ├── schedule/        # Arkan
+│       └── dashboard/       # Nopal
+└── README.md
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Pembagian tanggung jawab
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `src/app` — hanya routing. Tidak ada query database di sini.
+- `src/modules` — logika bisnis dan query database, milik tiap anggota.
+- `src/lib` — infrastruktur bersama. Jangan diubah tanpa kesepakatan tim.
 
-## Deploy on Vercel
+## Konsep Integrasi AI
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+AI digunakan untuk membantu pengguna memahami dan mengolah input tugas berbasis
+bahasa natural.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Alur utama:
+
+```
+User Input
+  → AI Processing
+  → Structured Task Data
+  → Task Management
+  → Calendar & Schedule
+```
+
+Contoh input:
+
+> "Aku harus menyelesaikan laporan jaringan sebelum Jumat, kira-kira butuh 3 jam."
+
+AI dapat mengolah input tersebut menjadi informasi terstruktur seperti:
+
+- Judul tugas
+- Kategori
+- Prioritas
+- Deadline
+- Estimasi durasi
+
+Setiap pemanggilan AI dicatat di tabel `ai_logs` (input, output, provider, model,
+durasi, status) supaya bisa dievaluasi dan dilaporkan.
+
+Integrasi AI **belum** diimplementasikan pada tahap ini. Yang sudah disiapkan:
+
+- Variabel environment di `.env.example` (`AI_PROVIDER`, `GEMINI_API_KEY`,
+  `GEMINI_MODEL`, `OPENAI_API_KEY`, `OPENAI_MODEL`) — API key kosong.
+- Tabel `ai_logs` di `prisma/schema.prisma`.
+- Folder modul dan endpoint placeholder untuk tiap fitur AI.
+- `isAiProviderReady()` di `src/lib/env.js` untuk mengecek konfigurasi.
+
+## Pembagian Tugas Kelompok
+
+| Anggota | Fitur                | Modul                     |
+| ------- | -------------------- | ------------------------- |
+| Wika    | Authentication       | `src/modules/auth`        |
+| Fauzan  | Task Management      | `src/modules/tasks`       |
+| Faqih   | AI Task Input        | `src/modules/ai-input`    |
+| Atha    | Task Categorization  | `src/modules/categorization` |
+| Haikal  | Priority Recommendation | `src/modules/priority`  |
+| Amel    | Task Breakdown       | `src/modules/breakdown`   |
+| Arkan   | Calendar & Schedule  | `src/modules/schedule`    |
+| Nopal   | Dashboard & Progress | `src/modules/dashboard`   |
+
+## Database
+
+| Model      | Fungsi                              | Pemilik         |
+| ---------- | ----------------------------------- | --------------- |
+| `User`     | Akun pengguna                       | Wika            |
+| `Session`  | Sesi login aktif                    | Wika            |
+| `Task`     | Tugas utama                         | Fauzan          |
+| `Category` | Kategori tugas                      | Atha            |
+| `Subtask`  | Subtasks hasil Task Breakdown       | Amel            |
+| `Schedule` | Slot waktu untuk menjalankan task   | Arkan           |
+| `AiLog`    | Log pemanggilan AI                  | Semua modul AI  |
+
+## Status Pengembangan
+
+Project masih dalam tahap **pondasi (initial setup)**:
+
+- [x] Next.js + JavaScript
+- [x] Konfigurasi PostgreSQL + Prisma
+- [x] Schema database
+- [x] Struktur folder modular
+- [x] Endpoint placeholder untuk 8 fitur
+- [x] README
+- [ ] Implementasi Authentication (Wika)
+- [ ] Implementasi Task Management (Fauzan)
+- [ ] Integrasi AI Task Input (Faqih)
+- [ ] Task Categorization (Atha)
+- [ ] Priority Recommendation (Haikal)
+- [ ] Task Breakdown (Amel)
+- [ ] Calendar & Schedule (Arkan)
+- [ ] Dashboard & Progress (Nopal)
+- [ ] UI/UX (dikerjakan terpisah, belum ada desain final)
+
+UI/UX dan implementasi fitur akan dikembangkan secara bertahap berdasarkan
+hasil perancangan sistem dan pembagian tugas kelompok.
+
+## Cara Kerja Sama
+
+- Bekerja di branch sendiri, jangan langsung ke `main`.
+- Satu fitur = satu folder modul = satu pull request.
+- Kalau butuh kolom database baru, buat migration baru
+  (`npm run db:migrate`), jangan edit manual tabel yang sudah ada.
+- Format response API harus konsisten. Ikuti `ok()` / `created()` / `fail()`
+  dari `src/lib/api-response.js`.
+- Jangan commit `.env`. Cukup `.env.example`.
